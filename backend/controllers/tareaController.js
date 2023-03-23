@@ -2,8 +2,9 @@ const asyncHandler = require('express-async-handler')
 const Tarea = require('../models/tareaModel')
 
 const getTareas = asyncHandler (async (req, res) => {
-    const tareas = await Tarea.find()
-
+    //muestra las tareas que haya creado mi ususario
+    const tareas = await Tarea.find({user: req.user.id})
+    
     res.status(200).json(tareas)
 })
 
@@ -15,18 +16,25 @@ const setTareas = asyncHandler (async (req, res) => {
     }
 
     const tarea = await Tarea.create({
-        texto: req.body.texto
+        texto: req.body.texto,
+        user: req.user.id
     })
     res.status(201).json(tarea)
 })
 
 const updateTareas = asyncHandler ( async (req, res) => {
+    
     // primero el ID
     const tarea = await Tarea.findById(req.params.id)
-
+    //verificamos que la tarea exista
     if (!tarea) {
         res.status(400)
         throw new Error('Tarea no encontrada')
+    }
+    // verificamos q la tarea pertenece al usuario del token
+    if (tarea.user.toString() !== req.user.id) {    
+        res.status(401)
+        throw new Error('Acceso no autorizado, la tarea no pertenece al usuario')
     }
 
     const tareaModificada = await Tarea.findByIdAndUpdate(req.params.id, req.body, {new: true})
@@ -42,8 +50,17 @@ const deleteTareas = asyncHandler ( async (req, res) => {
         throw new Error('Tarea no encontrada')
     }
 
-    const tareaBorrada = await Tarea.findByIdAndDelete(req.params.id)
-    res.status(200).json(tareaBorrada)
+    //verificamos que la tarea pertenece al usuario
+    if (tarea.user.toString() !== req.user.id) {
+        res.status(401)
+        throw new Error('Acceso no Autorizado, la tarea no pertenece al usuario logeado')
+    }
+
+    //await tarea.remove()
+    await tarea.deleteOne()
+
+   //const tareaBorrada = await Tarea.findByIdAndDelete(req.params.id)
+    res.status(200).json({id: req.params.id})
 })
 
 module.exports = {
